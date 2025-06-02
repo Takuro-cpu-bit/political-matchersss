@@ -545,4 +545,147 @@
             document.getElementById('progressPercent').textContent = `${Math.round(progress)}%`;
             document.getElementById('progressBar').style.width = `${progress}%`;
             
-            // 
+            // 質問カード更新
+            const questionCard = document.getElementById('questionCard');
+            questionCard.innerHTML = `
+                <div class="mb-4">
+                    <h2 class="text-lg font-semibold text-blue-600 mb-2">
+                        ${question.question}
+                    </h2>
+                    <p class="text-xl text-gray-800 leading-relaxed">
+                        ${question.text}
+                    </p>
+                </div>
+
+                <div class="space-y-3" id="optionsContainer">
+                    ${question.options.map(option => `
+                        <button
+                            onclick="handleAnswer(${option.value})"
+                            class="w-full p-4 text-left border rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors duration-200 flex items-center justify-between group"
+                        >
+                            <span class="text-gray-700">${option.text}</span>
+                            <svg class="w-4 h-4 text-gray-400 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </button>
+                    `).join('')}
+                </div>
+
+                <div class="mt-6 grid md:grid-cols-2 gap-4">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h4 class="font-semibold text-blue-800 mb-2 flex items-center">
+                            <span class="mr-2">🌟</span>
+                            「そう思う」を選んだ場合の社会
+                        </h4>
+                        <div class="text-sm text-blue-700 space-y-2">
+                            ${question.futureYes.map(scenario => `
+                                <div class="bg-white bg-opacity-50 p-2 rounded">
+                                    <span>${scenario}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                        <h4 class="font-semibold text-purple-800 mb-2 flex items-center">
+                            <span class="mr-2">🔄</span>
+                            「そう思わない」を選んだ場合の社会
+                        </h4>
+                        <div class="text-sm text-purple-700 space-y-2">
+                            ${question.futureNo.map(scenario => `
+                                <div class="bg-white bg-opacity-50 p-2 rounded">
+                                    <span>${scenario}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 回答処理
+        function handleAnswer(value) {
+            answers[questions[currentQuestion].id] = value;
+            
+            if (currentQuestion < questions.length - 1) {
+                currentQuestion++;
+                setTimeout(() => {
+                    displayQuestion();
+                }, 100);
+            } else {
+                setTimeout(() => {
+                    showResults();
+                }, 300);
+            }
+        }
+
+        // マッチング計算
+        function calculateMatches() {
+            const matches = {};
+            
+            Object.keys(parties).forEach(partyName => {
+                const party = parties[partyName];
+                let totalDifference = 0;
+                let questionCount = 0;
+
+                Object.keys(answers).forEach(questionId => {
+                    if (party.positions[questionId] !== undefined) {
+                        const difference = Math.abs(answers[questionId] - party.positions[questionId]);
+                        totalDifference += difference;
+                        questionCount++;
+                    }
+                });
+
+                const averageDifference = totalDifference / questionCount;
+                const matchPercentage = Math.max(0, 100 - (averageDifference * 25));
+                matches[partyName] = Math.round(matchPercentage);
+            });
+
+            return Object.entries(matches)
+                .sort(([,a], [,b]) => b - a)
+                .map(([name, percentage]) => ({ name, percentage, party: parties[name] }));
+        }
+
+        // 結果表示
+        function showResults() {
+            showScreen('resultsScreen');
+            const results = calculateMatches();
+            const resultsContent = document.getElementById('resultsContent');
+            
+            resultsContent.innerHTML = results.map((result, index) => `
+                <div class="bg-white border rounded-lg p-6 shadow-sm fade-in">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center">
+                            <div class="w-4 h-4 rounded-full ${result.party.color} mr-3"></div>
+                            <h3 class="text-xl font-semibold text-gray-800">
+                                ${index === 0 ? '🏆 ' : ''}
+                                ${result.name}
+                            </h3>
+                        </div>
+                        <div class="text-2xl font-bold text-blue-600">
+                            ${result.percentage}%
+                        </div>
+                    </div>
+                    
+                    <div class="w-full bg-gray-200 rounded-full h-3 mb-3">
+                        <div
+                            class="h-3 rounded-full ${result.party.color}"
+                            style="width: ${result.percentage}%"
+                        ></div>
+                    </div>
+                    
+                    <div class="text-gray-600 text-sm">
+                        <p class="mb-1">党首：${result.party.leader}</p>
+                        <p>${result.party.description}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            showScreen('titleScreen');
+        });
+    </script>
+</body>
+</html>
